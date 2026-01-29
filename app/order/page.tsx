@@ -1,4 +1,4 @@
-// app/order/page.tsx or components/OrderForm.tsx
+// app/order/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -61,6 +61,7 @@ export default function OrderForm() {
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -91,26 +92,49 @@ export default function OrderForm() {
     setIsSubmitting(true);
     
     try {
-      const response = await fetch('/api/orders', {
+      // Format the data for Formspree
+      const formData = new FormData();
+      formData.append('Customer Name', data.customerName);
+      formData.append('Customer Phone', data.customerPhone);
+      formData.append('Delivery Method', data.deliveryMethod);
+      if (data.deliveryAddress) {
+        formData.append('Delivery Address', data.deliveryAddress);
+      }
+      formData.append('Products', data.products.join(', '));
+      if (data.quantity) {
+        formData.append('Quantity', data.quantity);
+      }
+      if (data.cupcakeFlavors && data.cupcakeFlavors.length > 0) {
+        formData.append('Cupcake Flavors', data.cupcakeFlavors.join(', '));
+      }
+      if (data.additionalNotes) {
+        formData.append('Additional Notes', data.additionalNotes);
+      }
+      formData.append('Payment Method', data.paymentMethod);
+      formData.append('Preferred Date', format(data.preferredDate, 'PPP'));
+      if (data.preferredTime) {
+        formData.append('Preferred Time', data.preferredTime);
+      }
+      if (data.referenceImageUrl) {
+        formData.append('Reference Image URL', data.referenceImageUrl);
+      }
+
+      const response = await fetch('https://formspree.io/f/mpqrqrky', {
         method: 'POST',
+        body: formData,
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...data,
-          preferredDate: format(data.preferredDate, 'yyyy-MM-dd'),
-        }),
+          'Accept': 'application/json'
+        }
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to submit order');
+        throw new Error('Failed to submit order');
       }
 
       toast.success('Order placed successfully! Aanya will contact you soon.');
       
       // Reset form
+      reset();
       setSelectedProducts([]);
       setSelectedFlavors([]);
       setDate(undefined);
